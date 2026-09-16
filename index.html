@@ -2,113 +2,980 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pootwijzer 🐾</title>
-  <meta name="description" content="Pootwijzer: leeftijd, voeding, weeradvies en een A-Z handboek voor je hond of kat. Alles blijft op je eigen toestel." />
-  <meta name="theme-color" content="#fbf7f4" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="icons/icoon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="icons/icoon-512.png" />
-  <link rel="stylesheet" href="styles.css" />
+  
+  <!-- Tailwind CSS & Typography Plugin -->
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel voor browser-side JSX compilatie -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Animaties -->
+  <style>
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes slideInBottom4 { from { transform: translateY(1rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes slideInBottom8 { from { transform: translateY(2rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .animate-in { animation-fill-mode: both; }
+    .fade-in { animation-name: fadeIn; }
+    .zoom-in-95 { animation-name: zoomIn; }
+    .slide-in-from-bottom-4 { animation-name: slideInBottom4; }
+    .slide-in-from-bottom-8 { animation-name: slideInBottom8; }
+    
+    .duration-300 { animation-duration: 300ms; }
+    .duration-500 { animation-duration: 500ms; }
+    .duration-700 { animation-duration: 700ms; }
+  </style>
 </head>
-<body>
-  <a class="overslaan" href="#hoofd">Naar de inhoud</a>
+<body class="bg-slate-50 font-sans selection:bg-pink-300 overflow-x-hidden pb-20">
+  
+  <div id="root"></div>
 
-  <header class="kop">
-    <div class="wikkel kop__rij">
-      <span aria-hidden="true" style="font-size:1.4rem">🐾</span>
-      <h1 class="kop__titel" id="kop-titel">Pootwijzer</h1>
-      <button type="button" class="icoonknop verborgen" id="knop-terug" aria-label="Terug">←</button>
-    </div>
-  </header>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
 
-  <main id="hoofd" class="wikkel">
+    // --- LOKALE DATABASE (API-VRIJ) ---
+    const ANIMAL_CONFIG = {
+      hond: {
+        label: 'Hond', emoji: '🐶', term: 'ras', color: 'sky',
+        labels: { size: 'Grootte', coat: 'Vachttype', color: 'Kleur', feature: 'Opvallend Kenmerk' },
+        options: {
+          size: ['Klein', 'Middel', 'Groot', 'Reus'],
+          coat: ['Korthaar', 'Langhaar', 'Ruwhaar', 'Krullen'],
+          color: ['Zwart', 'Bruin', 'Wit', 'Bont'],
+          feature: ['Flaporen', 'Staande oren', 'Platte snuit', 'Lange staart']
+        },
+        db: [
+          { name: 'Labrador Retriever', size: 'Groot', coat: 'Korthaar', color: 'Bruin', feature: 'Flaporen' },
+          { name: 'Golden Retriever', size: 'Groot', coat: 'Langhaar', color: 'Bruin', feature: 'Flaporen' },
+          { name: 'Franse Bulldog', size: 'Klein', coat: 'Korthaar', color: 'Bont', feature: 'Platte snuit' },
+          { name: 'Teckel', size: 'Klein', coat: 'Korthaar', color: 'Zwart', feature: 'Flaporen' },
+          { name: 'Duitse Herder', size: 'Groot', coat: 'Korthaar', color: 'Bont', feature: 'Staande oren' },
+          { name: 'Poedel', size: 'Middel', coat: 'Krullen', color: 'Wit', feature: 'Flaporen' }
+        ]
+      },
+      kat: {
+        label: 'Kat', emoji: '🐱', term: 'ras', color: 'orange',
+        labels: { size: 'Grootte', coat: 'Vacht', color: 'Kleur', feature: 'Kenmerk' },
+        options: {
+          size: ['Klein', 'Normaal', 'Fors'],
+          coat: ['Korthaar', 'Langhaar', 'Naakt'],
+          color: ['Gestreept', 'Zwart/Wit', 'Rood', 'Grijs'],
+          feature: ['Grote oren', 'Platte snuit', 'Pluimstaart']
+        },
+        db: [
+          { name: 'Europese Korthaar', size: 'Normaal', coat: 'Korthaar', color: 'Gestreept', feature: 'Grote oren' },
+          { name: 'Maine Coon', size: 'Fors', coat: 'Langhaar', color: 'Rood', feature: 'Pluimstaart' },
+          { name: 'Pers', size: 'Normaal', coat: 'Langhaar', color: 'Grijs', feature: 'Platte snuit' },
+          { name: 'Sphynx', size: 'Klein', coat: 'Naakt', color: 'Zwart/Wit', feature: 'Grote oren' }
+        ]
+      },
+      konijn: {
+        label: 'Konijn', emoji: '🐰', term: 'ras', color: 'pink',
+        labels: { size: 'Grootte', coat: 'Vacht', color: 'Kleur', feature: 'Oren' },
+        options: {
+          size: ['Dwerg', 'Middel', 'Reus'],
+          coat: ['Kort', 'Lang/Pluizig'],
+          color: ['Bruin', 'Wit', 'Bont'],
+          feature: ['Hangoren', 'Staande oren', 'Leeuwenmanen']
+        },
+        db: [
+          { name: 'Hangoordwerg', size: 'Dwerg', coat: 'Kort', color: 'Bruin', feature: 'Hangoren' },
+          { name: 'Vlaamse Reus', size: 'Reus', coat: 'Kort', color: 'Bont', feature: 'Staande oren' },
+          { name: 'Leeuwenkopje', size: 'Dwerg', coat: 'Lang/Pluizig', color: 'Wit', feature: 'Leeuwenmanen' }
+        ]
+      },
+      vogel: {
+        label: 'Vogel', emoji: '🦜', term: 'soort', color: 'emerald',
+        labels: { size: 'Grootte', coat: 'Verenkleed', color: 'Kleur', feature: 'Snavel' },
+        options: {
+          size: ['Klein', 'Middel', 'Groot'],
+          coat: ['Glad', 'Pluizig'],
+          color: ['Groen/Geel', 'Grijs', 'Meerkleurig'],
+          feature: ['Kromme snavel', 'Rechte snavel', 'Kuifje']
+        },
+        db: [
+          { name: 'Grasparkiet', size: 'Klein', coat: 'Glad', color: 'Groen/Geel', feature: 'Kromme snavel' },
+          { name: 'Valkparkiet', size: 'Middel', coat: 'Glad', color: 'Grijs', feature: 'Kuifje' },
+          { name: 'Ara', size: 'Groot', coat: 'Glad', color: 'Meerkleurig', feature: 'Kromme snavel' },
+          { name: 'Kanarie', size: 'Klein', coat: 'Pluizig', color: 'Groen/Geel', feature: 'Rechte snavel' }
+        ]
+      },
+      cavia: {
+        label: 'Cavia', emoji: '🐹', term: 'ras', color: 'amber',
+        labels: { size: 'Grootte', coat: 'Vacht', color: 'Kleur', feature: 'Kenmerk' },
+        options: {
+          size: ['Klein', 'Normaal', 'Groot'],
+          coat: ['Gladhaar', 'Borstelhaar', 'Langhaar'],
+          color: ['Driekleur', 'Effen', 'Bont'],
+          feature: ['Rozetten', 'Korte snuit', 'Hangoortjes']
+        },
+        db: [
+          { name: 'Gladhaar', size: 'Normaal', coat: 'Gladhaar', color: 'Driekleur', feature: 'Hangoortjes' },
+          { name: 'Borstelcavia', size: 'Normaal', coat: 'Borstelhaar', color: 'Bont', feature: 'Rozetten' },
+          { name: 'Peruvian', size: 'Groot', coat: 'Langhaar', color: 'Effen', feature: 'Korte snuit' }
+        ]
+      },
+      reptiel: {
+        label: 'Reptiel', emoji: '🦎', term: 'soort', color: 'purple',
+        labels: { size: 'Grootte', coat: 'Huidtype', color: 'Kleur', feature: 'Bouw' },
+        options: {
+          size: ['Klein', 'Middel', 'Groot'],
+          coat: ['Schubben', 'Stekels', 'Schild'],
+          color: ['Groen', 'Zandkleur', 'Felgekleurd'],
+          feature: ['Met poten', 'Slangachtig', 'Huisje op rug']
+        },
+        db: [
+          { name: 'Baardagaam', size: 'Middel', coat: 'Stekels', color: 'Zandkleur', feature: 'Met poten' },
+          { name: 'Luipaardgekko', size: 'Klein', coat: 'Schubben', color: 'Felgekleurd', feature: 'Met poten' },
+          { name: 'Landschildpad', size: 'Middel', coat: 'Schild', color: 'Zandkleur', feature: 'Huisje op rug' },
+          { name: 'Korenslang', size: 'Groot', coat: 'Schubben', color: 'Felgekleurd', feature: 'Slangachtig' }
+        ]
+      }
+    };
 
-    <!-- Welkom: nog geen dier -->
-    <section class="scherm stapel" id="scherm-welkom" hidden aria-labelledby="welkom-titel">
-      <div class="kaart">
-        <h2 id="welkom-titel">Hoi! Wie woont er bij jou? 🐾</h2>
-        <p class="gedempt">Pootwijzer rekent de leeftijd en het eten van je hond of kat uit, kijkt wat het weer vandaag voor hém betekent, en heeft een handboek van A tot Z. Alles blijft op je eigen toestel.</p>
-        <div class="keuzes" id="soortkeuze"></div>
-      </div>
-      <p class="voetnoot">Geen account, geen server, geen advertenties. Zie <a href="docs/privacy.md">privacy</a>.</p>
-    </section>
+    const VIBES = ['Zonnig Strand 🏖️', 'Magisch Bos 🌲', 'Besneeuwde Bergen 🏔️', 'Ruimte/Melkweg 🌌', 'Onderwaterwereld 🐠', 'Gezellige Huiskamer 🛋️', 'Verjaardagsfeest 🎈'];
+    const OBJECTS = ['Kleurrijke Bal 🥎', 'Lekkere Kluif/Vis 🦴', 'Coole Zonnebril 😎', 'Gouden Kroontje 👑', 'Toverstaf 🪄', 'Feesthoedje 🥳', 'Vrolijk Skateboard 🛹'];
 
-    <!-- Wizard: nieuw dier toevoegen -->
-    <section class="scherm stapel" id="scherm-wizard" hidden aria-labelledby="wizard-titel">
-      <div class="kaart">
-        <p class="klein gedempt" id="wizard-stap">Stap 1 van 3</p>
-        <h2 id="wizard-titel">…</h2>
-        <div id="wizard-inhoud"></div>
-      </div>
-    </section>
+    // --- UTILITIES ---
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    <!-- Vandaag -->
-    <section class="scherm stapel" id="scherm-vandaag" hidden aria-labelledby="vandaag-titel">
-      <h2 class="alleen-schermlezer" id="vandaag-titel">Vandaag</h2>
-      <div class="dierwissel" id="dierwissel" role="group" aria-label="Kies een dier"></div>
-      <div id="vandaag-inhoud" class="stapel"></div>
-    </section>
+    const calculateAgeAndDiet = (type, birthDateString) => {
+      if (!birthDateString) return null;
+      const birthDate = new Date(birthDateString);
+      const today = new Date();
+      let ageInMonths = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
+      if (today.getDate() < birthDate.getDate()) ageInMonths--;
+      const ageInYears = ageInMonths / 12;
 
-    <!-- Handboek -->
-    <section class="scherm stapel" id="scherm-handboek" hidden aria-labelledby="handboek-titel">
-      <h2 id="handboek-titel">Handboek van A tot Z</h2>
-      <p class="gedempt" id="handboek-uitleg"></p>
-      <button type="button" class="kaart knop--vol" id="knop-medicijnwijzer" style="text-align:left;cursor:pointer;font:inherit;color:inherit">
-        <span class="rij">
-          <span class="kaart__emoji" aria-hidden="true">💊</span>
-          <span>
-            <strong>Medicijnwijzer</strong><br />
-            <span class="klein gedempt">Wat zit er in het doosje, en hoe geef je het?</span>
-          </span>
-        </span>
-      </button>
-      <label class="veld" for="az-zoek">
-        <span class="alleen-schermlezer">Zoek in het handboek</span>
-        <input type="search" id="az-zoek" placeholder="Zoek in het handboek…" autocomplete="off" />
-      </label>
-      <div class="az" id="az-lijst"></div>
-    </section>
+      let humanAge, lifeStage, nextStage, dietAdvice;
 
-    <!-- Spelen -->
-    <section class="scherm stapel" id="scherm-spelen" hidden aria-labelledby="spelen-titel">
-      <h2 id="spelen-titel">Spelen</h2>
-      <div id="spelen-inhoud" class="stapel"></div>
-    </section>
+      if (type === 'hond') {
+        humanAge = ageInYears <= 1 ? Math.round(ageInYears * 15) : (ageInYears <= 2 ? 15 + Math.round((ageInYears - 1) * 9) : 24 + Math.round((ageInYears - 2) * 5));
+        if (ageInMonths < 12) { lifeStage = 'Puppy 🍼'; nextStage = 'Volwassen (1j)'; dietAdvice = 'Speciaal puppyvoer voor groei en energie!'; }
+        else if (ageInYears < 7) { lifeStage = 'Volwassen 🎾'; nextStage = 'Senior (7j)'; dietAdvice = 'Evenwichtig voer voor een actieve hond.'; }
+        else { lifeStage = 'Senior 🛋️'; nextStage = 'Al bereikt!'; dietAdvice = 'Seniorvoer, lichter verteerbaar en goed voor gewrichten.'; }
+      } else if (type === 'kat') {
+        humanAge = ageInYears <= 1 ? Math.round(ageInYears * 15) : (ageInYears <= 2 ? 15 + Math.round((ageInYears - 1) * 9) : 24 + Math.round((ageInYears - 2) * 4));
+        if (ageInMonths < 12) { lifeStage = 'Kitten 🍼'; nextStage = 'Volwassen (1j)'; dietAdvice = 'Kittenvoer vol bouwstoffen voor de groei.'; }
+        else if (ageInYears < 7) { lifeStage = 'Volwassen 🐈'; nextStage = 'Senior (7j)'; dietAdvice = 'Compleet voer om fit en gezond te blijven.'; }
+        else { lifeStage = 'Senior 🧶'; nextStage = 'Al bereikt!'; dietAdvice = 'Aangepast voer ter ondersteuning van nieren en vitaliteit.'; }
+      } else {
+        // Generiek voor andere dieren
+        humanAge = Math.round(ageInYears * 5); // Grove schatting
+        lifeStage = ageInYears < 1 ? 'Jong 🍼' : 'Volwassen 🌟';
+        nextStage = 'Ouder';
+        dietAdvice = 'Zorg voor een soort-specifiek, uitgebalanceerd dieet met voldoende vers water.';
+      }
+      return { ageInYears, ageInMonths, humanAge, lifeStage, nextStage, dietAdvice };
+    };
 
-    <!-- Plakboek -->
-    <section class="scherm stapel" id="scherm-plakboek" hidden aria-labelledby="plakboek-titel">
-      <h2 id="plakboek-titel">Plakboek</h2>
-      <div id="plakboek-inhoud"></div>
-    </section>
+    // --- ICONEN ---
+    const IconChevronRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
+    const IconChat = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>;
+    const IconClose = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>;
+    const IconEdit = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+    const IconLock = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
 
-    <!-- Ik -->
-    <section class="scherm stapel" id="scherm-ik" hidden aria-labelledby="ik-titel">
-      <h2 id="ik-titel">Jouw dieren en instellingen</h2>
-      <div id="ik-inhoud" class="stapel"></div>
-    </section>
+    // --- HOOFD COMPONENT ---
+    function App() {
+      const [step, setStep] = useState('home'); 
+      const [activeTab, setActiveTab] = useState('profiel'); 
+      
+      const [pets, setPets] = useState({
+        hond: { breed: '', birthDate: '', gender: '', photoUrl: null, medicationName: '', weeklyFact: '', weatherChecked: false },
+        kat: { breed: '', birthDate: '', gender: '', photoUrl: null, medicationName: '', weeklyFact: '', weatherChecked: false },
+        vogel: { breed: '', birthDate: '', gender: '', photoUrl: null, medicationName: '', weeklyFact: '', weatherChecked: false },
+        konijn: { breed: '', birthDate: '', gender: '', photoUrl: null, medicationName: '', weeklyFact: '', weatherChecked: false },
+        cavia: { breed: '', birthDate: '', gender: '', photoUrl: null, medicationName: '', weeklyFact: '', weatherChecked: false },
+        reptiel: { breed: '', birthDate: '', gender: '', photoUrl: null, medicationName: '', weeklyFact: '', weatherChecked: false }
+      });
+      const [activePetType, setActivePetType] = useState(null); 
 
-  </main>
+      // Input details
+      const [tempBreed, setTempBreed] = useState('');
+      const [tempBirthDate, setTempBirthDate] = useState('');
+      const [tempGender, setTempGender] = useState('');
+      
+      // Gokken / Database State
+      const [quizData, setQuizData] = useState({ size: '', coat: '', color: '', feature: '' });
+      const [breedSuggestions, setBreedSuggestions] = useState([]);
+      const [isGuessing, setIsGuessing] = useState(false);
 
-  <nav class="onderbalk" id="onderbalk" aria-label="Hoofdmenu" hidden>
-    <button type="button" data-scherm="vandaag"><span aria-hidden="true">🏡</span>Vandaag</button>
-    <button type="button" data-scherm="handboek"><span aria-hidden="true">📖</span>Handboek</button>
-    <button type="button" data-scherm="spelen"><span aria-hidden="true">🧩</span>Spelen</button>
-    <button type="button" data-scherm="plakboek"><span aria-hidden="true">📒</span>Plakboek</button>
-    <button type="button" data-scherm="ik"><span aria-hidden="true">👤</span>Ik</button>
-  </nav>
+      // Lokale Content State
+      const [generatedHTML, setGeneratedHTML] = useState('');
+      const [isGenerating, setIsGenerating] = useState(false);
+      
+      // Fotostudio & Plakboek
+      const [isGeneratingPhoto, setIsGeneratingPhoto] = useState(false);
+      const [scrapbook, setScrapbook] = useState([]);
+      const [selectedSticker, setSelectedSticker] = useState(null);
+      
+      // Weer & Chat
+      const [weatherPopup, setWeatherPopup] = useState({ show: false, loading: false, html: '', title: '' });
+      const [isChatOpen, setIsChatOpen] = useState(false);
+      const [chatMessages, setChatMessages] = useState([]);
+      const [chatInput, setChatInput] = useState('');
+      const [isChatLoading, setIsChatLoading] = useState(false);
+      const chatEndRef = useRef(null);
 
-  <dialog class="blad" id="blad" aria-labelledby="blad-titel">
-    <div class="blad__kop">
-      <h2 id="blad-titel">…</h2>
-      <button type="button" class="icoonknop" id="blad-sluit" aria-label="Sluiten">✕</button>
-    </div>
-    <div class="blad__inhoud" id="blad-inhoud"></div>
-  </dialog>
+      const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+      const todayVibe = VIBES[dayOfYear % VIBES.length];
+      const todayObject = OBJECTS[dayOfYear % OBJECTS.length];
 
-  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+      const activePet = activePetType ? pets[activePetType] : null;
+      const petAgeInfo = activePet ? calculateAgeAndDiet(activePetType, activePet.birthDate) : null;
+      const config = activePetType ? ANIMAL_CONFIG[activePetType] : null;
 
-  <script type="module" src="js/app.js"></script>
+      useEffect(() => { if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: "smooth" }); }, [chatMessages, isChatLoading]);
+
+      useEffect(() => {
+        if (step === 'pet-dashboard' && activePet) {
+          if (!activePet.weeklyFact) generateLocalFact();
+          if (!activePet.weatherChecked && !weatherPopup.show) generateLocalWeather();
+        }
+      }, [step, activePetType]);
+
+
+      /* --- LOKALE GENERATIE LOGICA (OFFLINE) --- */
+
+      const generateLocalFact = () => {
+        const facts = [
+          `Wist je dat jouw ${activePet.breed} super gevoelige zintuigen heeft? Ze ruiken en horen dingen die wij niet opmerken! 🌟`,
+          `Een ${petAgeInfo?.lifeStage} zoals de jouwe heeft vaste ritmes nodig voor optimale gezondheid. 🐾`,
+          `Lichaamstaal is alles! Let maar eens goed op de staart en oren van jouw ${activePetType}. ✨`
+        ];
+        const fact = facts[Math.floor(Math.random() * facts.length)];
+        setPets(prev => ({ ...prev, [activePetType]: { ...prev[activePetType], weeklyFact: fact } }));
+      };
+
+      const generateLocalWeather = () => {
+        setPets(prev => ({ ...prev, [activePetType]: { ...prev[activePetType], weatherChecked: true } }));
+        setWeatherPopup({ show: true, loading: true, html: '', title: '' });
+        
+        setTimeout(() => {
+          const month = new Date().getMonth();
+          let temp, tip, activity;
+
+          if (month >= 5 && month <= 7) {
+            temp = 25; 
+            tip = `Het is flink warm! Voel even aan de grond; als het te heet is voor jouw hand, is het te heet voor de pootjes van je ${activePetType}!`;
+            activity = "Bouw een leuke snuffelmat binnen, of speel in de schaduw met water.";
+          } else if (month >= 11 || month <= 1) {
+            temp = 4; 
+            tip = `Brrr, kou en nattigheid. Droog je ${activePetType} goed af als hij/zij naar buiten is geweest, en let op met pekel op de straten!`;
+            activity = "Verstop snoepjes in huis voor een leuk hersenwerkje op de bank.";
+          } else {
+            temp = 16; 
+            tip = `Heerlijk weer vandaag. Perfect om lekker te ontdekken en nieuwe luchtjes op te snuiven.`;
+            activity = "Probeer vandaag eens een compleet nieuwe route of speel een interactief nieuw spel.";
+          }
+
+          setWeatherPopup({
+            show: true, loading: false,
+            title: `Het is weer voor leuke dingen! 🌤️`,
+            html: `
+              <h3>📍 Weertip voor je ${activePet.breed}</h3>
+              <p><strong>Let op:</strong> ${tip}</p>
+              <p><strong>Leuk Idee:</strong> ${activity}</p>
+            `
+          });
+        }, 1500);
+      };
+
+      const executeLocalBreedGuess = () => {
+        setIsGuessing(true); setErrorMsg(null);
+        setTimeout(() => {
+          const currentDb = config.db;
+          // Simpel lokaal score algoritme gebaseerd op dropdowns
+          let scoredBreeds = currentDb.map(breedObj => {
+            let score = 0;
+            if (quizData.size && breedObj.size === quizData.size) score++;
+            if (quizData.coat && breedObj.coat === quizData.coat) score++;
+            if (quizData.color && breedObj.color === quizData.color) score++;
+            if (quizData.feature && breedObj.feature === quizData.feature) score++;
+            return { name: breedObj.name, score };
+          });
+          
+          scoredBreeds.sort((a, b) => b.score - a.score);
+          
+          // Pak top 3
+          let top = scoredBreeds.slice(0, 3).map(b => b.name);
+          // Als score 0 is, geef gewoon wat willekeurige suggesties uit de lijst
+          if (scoredBreeds[0].score === 0) {
+             top = currentDb.slice(0, 3).map(b => b.name).sort(() => 0.5 - Math.random());
+          }
+          
+          setBreedSuggestions(top);
+          setIsGuessing(false);
+        }, 1000);
+      };
+
+      const startLocalHandbookGeneration = () => {
+        setStep('generating-handbook'); setIsGenerating(true); setChatMessages([]);
+        setTimeout(() => {
+          const html = `
+            <h2>Anatomie & Verzorging voor de ${activePet.breed}</h2>
+            <p>Omdat jouw ${config.label.toLowerCase()} in de <strong>${petAgeInfo?.lifeStage}</strong> fase zit, is de verzorging heel belangrijk! Controleer regelmatig de vacht, nagels en het gebit.</p>
+            <div style="border: 3px dashed #f472b6; padding: 1.5rem; text-align: center; border-radius: 1rem; margin: 1.5rem 0; background-color: #fdf2f8; color: #831843;">
+              <span style="font-size: 3rem; margin-bottom: 0.5rem; display: block;">🎨 🐾</span>
+              <strong style="display:block; margin-bottom: 0.25rem; font-size: 1.2rem;">Borstel & Controle Instructie</strong>
+              <em>Neem de tijd om je ${config.label.toLowerCase()} overal te aaien. Borstel zachtjes met de haarrichting mee (of let op de rui!). Beloon altijd met iets lekkers!</em>
+            </div>
+            <h2>Voeding & Gezondheid</h2>
+            <p>Als ${petAgeInfo?.lifeStage} verbruikt je dier energie op zijn eigen manier. Geef liever meerdere kleine beetjes dan één grote bak.</p>
+            <blockquote>🧠 <strong>Deep Dive:</strong> Net als mensen hebben dieren een 'Circadiaans ritme' (een interne klok). Zorg voor vaste eettijden en genoeg slaap, dit houdt ze mentaal gezond!</blockquote>
+          `;
+          setGeneratedHTML(html);
+          setStep('handbook');
+          setIsGenerating(false);
+        }, 2000);
+      };
+
+      const startLocalMedicationGeneration = () => {
+        setStep('generating-medication'); setIsGenerating(true); setChatMessages([]);
+        setTimeout(() => {
+          const html = `
+            <h2>Wat is ${activePet.medicationName}? 💊</h2>
+            <p>Dit is een middel dat soms wordt voorgeschreven voor de ${activePet.breed}. Voor een <strong>${petAgeInfo?.lifeStage}</strong> is een precieze dosering super belangrijk (vraag dit altijd aan je dierenarts!).</p>
+            <div style="border: 3px dashed #34d399; padding: 1.5rem; text-align: center; border-radius: 1rem; margin: 1.5rem 0; background-color: #ecfdf5; color: #064e3b;">
+              <span style="font-size: 3rem; margin-bottom: 0.5rem; display: block;">🧑‍⚕️ 🐾</span>
+              <strong style="display:block; margin-bottom: 0.25rem; font-size: 1.2rem;">Makkelijke Toediening!</strong>
+              <em>Zorg voor een rustige sfeer. Verstop een pilletje bijvoorbeeld in wat natvoer, een stukje worst of een speciale pillensnack. Blijf zelf heel relaxed!</em>
+            </div>
+            <h2>Waar moet je op letten? 🧐</h2>
+            <ul>
+              <li>Zorg dat er altijd vers water in de buurt is.</li>
+              <li>Houd je maatje de eerste paar uurtjes even in de gaten.</li>
+              <li>Werkt je dier ineens niet meer mee of wordt hij sloom? Bel dan gewoon even de dierenarts.</li>
+            </ul>
+          `;
+          setGeneratedHTML(html);
+          setStep('medication-guide');
+          setIsGenerating(false);
+        }, 2000);
+      };
+
+      // Lokale Chatbot Simulator
+      const handleSendLocalChatMessage = (e) => {
+        e.preventDefault();
+        if (!chatInput.trim() || isChatLoading) return;
+        const q = chatInput.toLowerCase();
+        setChatMessages(prev => [...prev, { role: 'user', content: chatInput }]);
+        setChatInput(''); setIsChatLoading(true);
+
+        setTimeout(() => {
+          let answer = "Wat een goede vraag! Zorg altijd dat je goed naar je dier kijkt en bij twijfel je eigen dierenarts belt. 🐾";
+          if (q.includes('eten') || q.includes('voer') || q.includes('drink')) answer = `Voor een ${petAgeInfo.lifeStage} is het belangrijk de voeding af te stemmen op het activiteitsniveau. Geef liever meerdere kleine beetjes! 🥣`;
+          if (q.includes('spelen') || q.includes('bal') || q.includes('speeltje')) answer = `Spelen is super belangrijk voor de mentale gezondheid van je ${activePet.breed}! Bouw de intensiteit rustig op. 🎾`;
+          if (q.includes('ziek') || q.includes('arts') || q.includes('pijn')) answer = "Als je denkt dat je dier ziek is of pijn heeft, raadpleeg dan altijd direct een echte dierenarts! 🩺";
+          if (q.includes('medicijn') || q.includes('pil')) answer = "Verstop een pilletje altijd in iets héél lekkers en zorg dat je zelf heel ontspannen bent. Dan trappen ze er het makkelijkst in! 💊";
+          
+          setChatMessages(prev => [...prev, { role: 'assistant', content: `<p>${answer}</p>` }]);
+          setIsChatLoading(false);
+        }, 800);
+      };
+
+      // Lokale Magische Fotostudio (Canvas manipulatie)
+      const generateLocalMagicPhoto = () => {
+        if (!activePet.photoUrl) return;
+        setIsGeneratingPhoto(true);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 400; canvas.height = 400;
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+          // Mooie zachte achtergrondkleur
+          ctx.fillStyle = config.color === 'sky' ? '#e0f2fe' : (config.color === 'orange' ? '#ffedd5' : '#fdf2f8');
+          ctx.fillRect(0,0,400,400);
+          
+          // Masker voor de ronde uitsnede van de foto
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(200, 200, 150, 0, Math.PI * 2);
+          ctx.clip();
+          // Draw image
+          const aspect = img.width / img.height;
+          let w = 300, h = 300;
+          if(aspect > 1) { w = 300 * aspect; } else { h = 300 / aspect; }
+          ctx.drawImage(img, 200 - w/2, 200 - h/2, w, h);
+          ctx.restore();
+
+          // Dikke witte sticker rand
+          ctx.beginPath();
+          ctx.arc(200, 200, 150, 0, Math.PI * 2);
+          ctx.lineWidth = 15;
+          ctx.strokeStyle = 'white';
+          ctx.stroke();
+
+          // Emoji toevoegen op basis van de dag!
+          ctx.font = '50px Arial';
+          ctx.fillText(todayVibe.slice(-2), 50, 80);
+          ctx.fillText(todayObject.slice(-2), 300, 350);
+
+          const base64 = canvas.toDataURL('image/png');
+          setScrapbook(prev => [{ id: Date.now(), title: `Magische Sticker ✨ (${todayVibe.split(' ')[0]})`, date: new Date().toLocaleDateString('nl-NL'), src: base64 }, ...prev]);
+          setActiveTab('plakboek');
+          setIsGeneratingPhoto(false);
+        };
+        img.src = activePet.photoUrl;
+      };
+
+      const handlePhotoUpload = (e) => {
+        const file = e.target.files[0];
+        if (file && activePetType) {
+          const reader = new FileReader();
+          reader.onload = (evt) => setPets(prev => ({ ...prev, [activePetType]: { ...prev[activePetType], photoUrl: evt.target.result } }));
+          reader.readAsDataURL(file);
+        }
+      };
+
+
+      // --- COMPONENT RENDERS ---
+
+      const renderHeader = () => (
+        <header className="mb-12 text-center relative z-10">
+          <div className="inline-block bg-white/80 backdrop-blur-md px-8 py-4 rounded-[2rem] shadow-sm border border-white/50 mb-4">
+            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-orange-400">
+              Pootwijzer 🐾
+            </h1>
+          </div>
+          <p className="text-slate-600 font-medium text-lg">Jouw lokale, slimme encyclopedie voor alle dieren!</p>
+          {step !== 'home' && (
+            <button onClick={() => setStep('home')} className="absolute left-0 top-4 text-pink-500 font-bold hover:text-white hover:bg-pink-500 flex items-center gap-2 bg-white/80 backdrop-blur-md px-5 py-3 rounded-full shadow-sm transition-all border border-pink-100">
+              <span>🏠</span> Home
+            </button>
+          )}
+        </header>
+      );
+
+      const renderHome = () => (
+        <div className="animate-in fade-in zoom-in-95 duration-500 max-w-4xl mx-auto">
+          <h2 className="text-3xl font-extrabold mb-8 text-slate-800 text-center">Voor wie maken we een dossier? ✨</h2>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-12">
+            {Object.keys(ANIMAL_CONFIG).map(type => {
+              const pet = pets[type];
+              const conf = ANIMAL_CONFIG[type];
+              const hasProfile = pet.breed && pet.birthDate;
+              return (
+                <button key={type} onClick={() => {
+                    setActivePetType(type);
+                    setStep(hasProfile ? 'pet-dashboard' : 'know-breed');
+                    setActiveTab('profiel');
+                    setQuizData({ size: '', coat: '', color: '', feature: '' });
+                    setBreedSuggestions([]);
+                  }} className={`flex flex-col items-center p-6 bg-white/90 backdrop-blur-sm border border-white rounded-[2rem] hover:-translate-y-2 hover:shadow-xl transition-all group relative overflow-hidden shadow-sm hover:ring-4 ring-${conf.color}-200`}>
+                  {pet.photoUrl ? (
+                    <img src={pet.photoUrl} alt={type} className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-md mb-4" />
+                  ) : (
+                    <div className={`w-28 h-28 flex items-center justify-center rounded-full mb-4 bg-${conf.color}-100`}>
+                      <span className="text-6xl group-hover:scale-110 transition-transform">{conf.emoji}</span>
+                    </div>
+                  )}
+                  <span className={`text-xl font-bold text-${conf.color}-800`}>{conf.label}</span>
+                  {!hasProfile && <span className="mt-2 bg-slate-100 text-slate-500 text-xs font-bold px-3 py-1 rounded-full">Nieuw Profiel</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+
+      const renderKnowBreed = () => (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto">
+          <button onClick={() => setStep('home')} className="text-pink-500 font-bold hover:text-pink-700 mb-6 flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm">
+            <span>←</span> Terug
+          </button>
+          <h2 className="text-2xl font-extrabold mb-6 text-slate-700 text-center">Weet je het/de {config.term} van je {config.label.toLowerCase()}? 🧬</h2>
+          <div className="flex flex-col space-y-4">
+            <button onClick={() => setStep('input-breed')} className="w-full flex items-center justify-between p-6 bg-white border-4 border-green-100 rounded-2xl hover:border-green-400 hover:shadow-md transition-all text-left">
+              <span className="text-xl font-bold text-green-800">Ja, dat weet ik!</span><span className="text-3xl">✅</span>
+            </button>
+            <button onClick={() => setStep('guess-breed')} className="w-full flex items-center justify-between p-6 bg-white border-4 border-purple-100 rounded-2xl hover:border-purple-400 hover:shadow-md transition-all text-left">
+              <span className="text-xl font-bold text-purple-800">Nee, laten we zoeken!</span><span className="text-3xl">🕵️‍♀️</span>
+            </button>
+            <button onClick={() => { setTempBreed(`Unieke Mix / Kruising`); setStep('input-details'); }} className="w-full flex items-center justify-between p-6 bg-white border-4 border-yellow-100 rounded-2xl hover:border-yellow-400 hover:shadow-md transition-all text-left">
+              <span className="text-xl font-bold text-yellow-800">Echt geen idee (Mix)</span><span className="text-3xl">🤷‍♀️</span>
+            </button>
+          </div>
+        </div>
+      );
+
+      const renderInputBreed = () => (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto text-center">
+          <button onClick={() => setStep('know-breed')} className="text-pink-500 font-bold hover:text-pink-700 mb-6 flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm mx-auto">
+            <span>←</span> Terug
+          </button>
+          <h2 className="text-2xl font-extrabold mb-2 text-slate-700 text-center">Welk/Welke {config.term} is het? {config.emoji}</h2>
+          <div className="flex flex-col space-y-4 mt-6">
+            <input 
+              type="text" value={tempBreed} onChange={(e) => setTempBreed(e.target.value)}
+              placeholder={`Bijvoorbeeld: ${config.db[0].name}`}
+              className="w-full p-5 text-lg font-bold border-4 border-pink-100 rounded-2xl focus:border-pink-400 outline-none shadow-sm text-slate-700" autoFocus
+            />
+            <button onClick={() => { setStep('input-details'); setErrorMsg(null); }} disabled={tempBreed.trim().length < 2} className="w-full py-5 bg-gradient-to-r from-pink-500 to-orange-400 text-white text-xl font-extrabold rounded-2xl hover:shadow-lg hover:scale-[1.02] disabled:opacity-50 transition-all">
+              Verder! 🚀
+            </button>
+          </div>
+        </div>
+      );
+
+      const renderGuessBreed = () => (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto">
+          <button onClick={() => setStep('know-breed')} className="text-pink-500 font-bold hover:text-pink-700 mb-6 flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm">
+            <span>←</span> Terug
+          </button>
+          <h2 className="text-2xl font-extrabold mb-2 text-slate-700 text-center">Databank Zoeken 🔍</h2>
+          <p className="text-center text-slate-500 font-medium mb-6">Selecteer kenmerken en ik zoek lokaal de beste matches.</p>
+          
+          {breedSuggestions.length === 0 ? (
+            <div className="space-y-4 bg-white p-6 border-4 border-purple-100 rounded-3xl shadow-sm text-left">
+              {Object.keys(config.options).map((key) => (
+                <div key={key}>
+                  <label className="block text-sm font-bold text-slate-500 mb-1 pl-1">{config.labels[key]}</label>
+                  <select 
+                    value={quizData[key]} 
+                    onChange={(e) => setQuizData({...quizData, [key]: e.target.value})}
+                    className="w-full p-4 font-bold text-slate-700 border-4 border-slate-100 rounded-2xl focus:border-purple-400 outline-none bg-white cursor-pointer"
+                  >
+                    <option value="">-- Kies een optie --</option>
+                    {config.options[key].map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+              
+              <button onClick={executeLocalBreedGuess} disabled={isGuessing} className="w-full py-5 mt-4 bg-purple-500 text-white font-extrabold text-xl rounded-2xl disabled:opacity-50 hover:bg-purple-600 hover:shadow-lg transition-all">
+                {isGuessing ? "Doorzoeken... 🧠" : "Vind de match! ✨"}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 mt-4">
+              <h3 className="text-xl font-extrabold text-slate-700 text-center mb-4">Mijn algoritme vond deze matches! 🎉</h3>
+              {breedSuggestions.map((suggestion, idx) => (
+                <button key={idx} onClick={() => { setTempBreed(suggestion); setStep('input-details'); }} className="w-full p-5 bg-white border-4 border-purple-100 rounded-2xl hover:border-purple-400 text-left font-extrabold text-purple-900 flex justify-between items-center text-lg hover:shadow-md transition-all">
+                  {suggestion} <IconChevronRight />
+                </button>
+              ))}
+              <button onClick={() => { setBreedSuggestions([]); setQuizData({ size: '', coat: '', color: '', feature: '' }); }} className="w-full mt-3 text-center text-purple-500 font-bold hover:underline pt-2">
+                 ← Opnieuw selecteren
+              </button>
+            </div>
+          )}
+        </div>
+      );
+
+      const renderInputDetails = () => (
+        <div className="animate-in zoom-in-95 duration-500 max-w-xl mx-auto text-center">
+          <h2 className="text-4xl font-extrabold mb-6 text-slate-800">Bevestig het Profiel! 🎉</h2>
+          <p className="text-slate-600 font-medium mb-8 bg-white/80 p-3 rounded-2xl shadow-sm inline-block backdrop-blur-md">
+            Geselecteerd: <strong className="text-pink-500">{tempBreed}</strong>
+          </p>
+          
+          <div className="bg-white/90 backdrop-blur-md p-8 border border-white rounded-[2.5rem] shadow-xl max-w-md mx-auto space-y-8">
+            
+            <div>
+              <label className="block text-slate-800 font-bold mb-4 text-xl">Geslacht:</label>
+              <div className="flex gap-4">
+                <button onClick={() => setTempGender('Mannetje')} className={`flex-1 py-4 rounded-2xl font-bold text-lg border-2 transition-all ${tempGender === 'Mannetje' ? `bg-${config.color}-100 border-${config.color}-400 text-${config.color}-800 scale-105 shadow-md` : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
+                  ♂️ Mannetje
+                </button>
+                <button onClick={() => setTempGender('Vrouwtje')} className={`flex-1 py-4 rounded-2xl font-bold text-lg border-2 transition-all ${tempGender === 'Vrouwtje' ? `bg-pink-100 border-pink-400 text-pink-800 scale-105 shadow-md` : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'}`}>
+                  ♀️ Vrouwtje
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-800 font-bold mb-4 text-xl">Geboortedatum:</label>
+              <input 
+                type="date" value={tempBirthDate} onChange={(e) => setTempBirthDate(e.target.value)} 
+                className="w-full p-4 text-lg font-bold bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-pink-400 outline-none text-slate-700 transition-colors"
+                max={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+
+            <button 
+              onClick={() => {
+                setPets(prev => ({
+                  ...prev,
+                  [activePetType]: { ...prev[activePetType], breed: tempBreed, birthDate: tempBirthDate, gender: tempGender, weatherChecked: false, dailyFact: '' }
+                }));
+                setStep('pet-dashboard'); setActiveTab('profiel');
+                setTempBreed(''); setTempBirthDate(''); setTempGender('');
+              }} 
+              disabled={!tempBirthDate || !tempGender}
+              className="w-full py-5 bg-slate-900 text-white text-xl font-extrabold rounded-2xl hover:shadow-lg hover:scale-[1.02] disabled:opacity-50 transition-all mt-4"
+            >
+              Maak Dossier Aan! ✨
+            </button>
+          </div>
+        </div>
+      );
+
+      const renderPetDashboard = () => {
+        if (!activePet) return null;
+        const conf = ANIMAL_CONFIG[activePetType];
+
+        return (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+          
+          {/* Header Card */}
+          <div className={`bg-white/80 backdrop-blur-md p-8 rounded-[3rem] shadow-lg border border-white flex flex-col md:flex-row items-center mb-8 gap-8 relative`}>
+            <div className="relative group">
+              <div className={`w-40 h-40 rounded-full border-4 border-white shadow-xl overflow-hidden bg-${conf.color}-100 flex items-center justify-center`}>
+                {activePet.photoUrl ? <img src={activePet.photoUrl} className="w-full h-full object-cover" /> : <span className="text-7xl">{conf.emoji}</span>}
+              </div>
+               <label className="absolute bottom-2 right-2 bg-white p-3 rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform text-slate-700">
+                <IconEdit />
+                <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+              </label>
+            </div>
+            <div className="text-center md:text-left flex-1">
+              <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+                <h2 className="text-4xl font-extrabold text-slate-800 capitalize tracking-tight">{conf.label} Dossier</h2>
+                <span className="text-3xl">{activePet.gender === 'Mannetje' ? '♂️' : '♀️'}</span>
+              </div>
+              <div className="flex flex-wrap justify-center md:justify-start gap-3">
+                <span className={`bg-${conf.color}-100 text-${conf.color}-800 text-sm font-extrabold px-5 py-2 rounded-full uppercase tracking-wider`}>{activePet.breed}</span>
+                <span className="bg-slate-800 text-white text-sm font-extrabold px-5 py-2 rounded-full uppercase tracking-wider">{petAgeInfo?.lifeStage}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Floating Modern Tabs */}
+          <div className="flex flex-wrap gap-3 mb-10 justify-center bg-white/60 backdrop-blur-md p-2 rounded-full shadow-sm border border-white/50 w-fit mx-auto">
+            {['profiel', 'encyclopedie', 'fotostudio', 'plakboek'].map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-3 rounded-full font-bold text-sm transition-all capitalize ${activeTab === tab ? `bg-slate-800 text-white shadow-md scale-105` : 'text-slate-600 hover:bg-white/80'}`}>
+                {tab === 'plakboek' ? `${tab} (${scrapbook.length})` : tab}
+              </button>
+            ))}
+          </div>
+
+          {/* TABS CONTENT */}
+          <div className="min-h-[400px]">
+            {activeTab === 'profiel' && (
+              <div className="animate-in fade-in space-y-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className={`bg-white/80 backdrop-blur-md p-8 rounded-[2.5rem] shadow-sm border border-white`}>
+                     <h3 className={`text-2xl font-extrabold text-slate-800 mb-6 flex items-center gap-3`}>🎂 Leeftijd Info</h3>
+                     <div className="space-y-4">
+                       <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                         <span className="text-slate-500 font-bold">Geboren op</span>
+                         <span className="text-slate-800 font-extrabold">{new Date(activePet.birthDate).toLocaleDateString('nl-NL')}</span>
+                       </div>
+                       <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                         <span className="text-slate-500 font-bold">Echte leeftijd</span>
+                         <span className="text-slate-800 font-extrabold">{Math.floor(petAgeInfo.ageInYears)}j {petAgeInfo.ageInMonths % 12}m</span>
+                       </div>
+                       <div className="bg-pink-50 p-4 rounded-2xl flex justify-between items-center">
+                         <span className="text-pink-700 font-bold">Mensenjaren</span>
+                         <span className="text-2xl font-extrabold text-pink-600">{petAgeInfo.humanAge} 🎈</span>
+                       </div>
+                     </div>
+                   </div>
+
+                   <div className="bg-white/80 backdrop-blur-md p-8 rounded-[2.5rem] shadow-sm border border-white">
+                     <h3 className="text-2xl font-extrabold text-slate-800 mb-6 flex items-center gap-3">🥣 Voeding & Fase</h3>
+                     <p className="text-sm font-bold text-slate-400 uppercase mb-1">Huidige Fase</p>
+                     <p className="text-2xl font-extrabold text-green-600 mb-4">{petAgeInfo.lifeStage}</p>
+                     <div className="bg-slate-50 p-4 rounded-2xl mb-4 border border-slate-100">
+                       <p className="text-slate-700 font-medium italic">"{petAgeInfo.dietAdvice}"</p>
+                     </div>
+                     <p className="text-sm font-bold text-slate-400 mb-2">Op weg naar {petAgeInfo.nextStage}...</p>
+                     <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                       <div className="bg-green-400 h-full rounded-full w-1/2"></div>
+                     </div>
+                   </div>
+                 </div>
+                 
+                 <div className="bg-gradient-to-r from-yellow-100 to-amber-100 p-8 rounded-[2.5rem] shadow-sm border border-yellow-200 relative overflow-hidden">
+                    <div className="absolute -top-10 -right-10 text-9xl opacity-20 transform rotate-12">💡</div>
+                    <h3 className="font-extrabold text-amber-900 text-xl mb-3 flex items-center gap-2">
+                      <span>✨</span> Weetje van de Dag!
+                    </h3>
+                    <p className="text-amber-900 font-medium text-lg">{activePet.weeklyFact}</p>
+                 </div>
+              </div>
+            )}
+
+            {activeTab === 'encyclopedie' && (
+              <div className="animate-in fade-in grid grid-cols-1 md:grid-cols-2 gap-6">
+                <button onClick={startLocalHandbookGeneration} className="flex flex-col text-left p-8 bg-sky-50 border-4 border-sky-200 rounded-3xl hover:border-sky-400 hover:-translate-y-2 hover:shadow-xl transition-all group">
+                  <div className="text-7xl mb-4 group-hover:scale-110 transition-transform">📖</div>
+                  <h3 className="text-2xl font-extrabold text-sky-900 mb-2">A-Z Handboek</h3>
+                  <p className="text-sky-700 font-bold">Lees de beste tips, direct op maat voor jouw {petAgeInfo?.lifeStage.split(' ')[0]}!</p>
+                </button>
+                <button onClick={() => setStep('input-medication')} className="flex flex-col text-left p-8 bg-emerald-50 border-4 border-emerald-200 rounded-3xl hover:border-emerald-400 hover:-translate-y-2 hover:shadow-xl transition-all group">
+                  <div className="text-7xl mb-4 group-hover:scale-110 transition-transform">💊</div>
+                  <h3 className="text-2xl font-extrabold text-emerald-900 mb-2">EHBO Medicatie</h3>
+                  <p className="text-emerald-700 font-bold">Hoe geef je een pilletje? Makkelijke en nuchtere uitleg.</p>
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'fotostudio' && (
+              <div className="animate-in zoom-in-95 text-center">
+                <div className="text-6xl mb-4">📸</div>
+                <h2 className="text-3xl font-extrabold text-pink-800 mb-2">Magische Fotostudio</h2>
+                <p className="text-pink-600 font-bold text-lg mb-6">Maak elke dag een unieke lokale sticker van je profielfoto!</p>
+                
+                <div className="bg-pink-50 p-6 rounded-3xl border-4 border-pink-200 inline-block text-left mb-8 shadow-sm">
+                   <h4 className="font-extrabold text-pink-900 mb-4 text-xl">De magische thema's van vandaag:</h4>
+                   <p className="text-lg font-bold text-pink-800 mb-2 flex items-center gap-2">Sfeer: <span className="bg-white px-3 py-1 rounded-lg border-2 border-pink-200">{todayVibe}</span></p>
+                   <p className="text-lg font-bold text-pink-800 flex items-center gap-2">Object: <span className="bg-white px-3 py-1 rounded-lg border-2 border-pink-200">{todayObject}</span></p>
+                </div>
+
+                <div className="max-w-md mx-auto">
+                  {!activePet.photoUrl ? (
+                    <div className="bg-slate-100 border-4 border-dashed border-slate-300 rounded-3xl p-10 text-slate-500">
+                      <p className="font-bold text-xl mb-2">Nog geen profielfoto! 😮</p>
+                      <p>Ga terug naar het 'Profiel' tabblad om eerst een mooie foto te uploaden.</p>
+                      <button onClick={() => setActiveTab('profiel')} className="mt-4 text-pink-500 font-bold hover:underline">Naar Profiel</button>
+                    </div>
+                  ) : (
+                    <div className="animate-in zoom-in-95">
+                      <img src={activePet.photoUrl} alt="Preview" className="w-64 h-64 object-cover rounded-full border-8 border-pink-300 mx-auto mb-6 shadow-md" />
+                      <button 
+                        onClick={generateLocalMagicPhoto} 
+                        disabled={isGeneratingPhoto}
+                        className="w-full bg-gradient-to-r from-pink-500 to-orange-400 text-white py-4 rounded-2xl font-extrabold text-xl shadow-lg hover:scale-105 disabled:opacity-50 transition-transform border-2 border-white"
+                      >
+                        {isGeneratingPhoto ? "Sticker knippen... ✨" : "Maak Magische Sticker! 🪄"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'plakboek' && (
+              <div className="animate-in fade-in text-center">
+                <h2 className="text-3xl font-extrabold text-yellow-800 mb-8 flex items-center justify-center gap-3">
+                  <span className="text-5xl">📒</span> Jouw Plakboek
+                </h2>
+                {scrapbook.length === 0 ? (
+                  <div className="text-center py-16 bg-yellow-50 rounded-3xl border-4 border-yellow-200">
+                     <span className="text-6xl opacity-50 mb-4 block">👻</span>
+                     <p className="text-yellow-700 font-bold text-xl">Je plakboek is nog leeg!</p>
+                     <p className="text-yellow-600 font-medium">Gebruik de fotostudio om stickers te maken.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                    {scrapbook.map((item) => (
+                      <button key={item.id} onClick={() => setSelectedSticker(item)} className="bg-white p-4 rounded-3xl border-4 border-yellow-200 shadow-sm hover:scale-105 transition-transform flex flex-col items-center hover:-rotate-2 cursor-pointer relative group">
+                        <img src={item.src} alt={item.title} className="w-full h-auto object-contain rounded-full drop-shadow-sm bg-yellow-50 p-1 border-4 border-yellow-100" />
+                        <p className="mt-3 font-extrabold text-yellow-900 text-sm">{item.title}</p>
+                        <p className="text-xs font-bold text-slate-400 mt-1">Behaald: {item.date}</p>
+                        <div className="absolute inset-0 bg-white/60 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                          <span className="bg-blue-500 text-white font-bold px-4 py-2 rounded-full">Delen!</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        );
+      };
+
+      const renderInputMedication = () => (
+        <div className="animate-in zoom-in-95 duration-500 max-w-md mx-auto text-center">
+          <button onClick={() => setStep('pet-dashboard')} className="text-emerald-600 font-bold hover:text-emerald-800 mb-6 flex items-center justify-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm mx-auto">
+            <span>←</span> Terug naar Dossier
+          </button>
+          <div className="text-7xl mb-4">🩺</div>
+          <h2 className="text-3xl font-extrabold mb-2 text-slate-700">Medicijn zoeken!</h2>
+          <p className="text-slate-500 font-bold mb-6 text-lg">Ik pas de tips speciaal aan voor een <strong className="text-emerald-600">{petAgeInfo?.lifeStage.split(' ')[0]}</strong>!</p>
+          
+          <div className="flex flex-col space-y-4">
+            <input 
+              type="text" value={activePet.medicationName} onChange={(e) => setPets(prev => ({ ...prev, [activePetType]: { ...prev[activePetType], medicationName: e.target.value } }))}
+              placeholder="Naam van het medicijn..."
+              className="w-full p-5 text-xl font-bold border-4 border-emerald-200 rounded-2xl focus:border-emerald-400 outline-none shadow-sm text-slate-700" autoFocus
+            />
+            <button onClick={startLocalMedicationGeneration} disabled={activePet.medicationName.trim().length < 2} className="w-full py-5 bg-emerald-500 text-white text-2xl font-extrabold rounded-2xl hover:shadow-lg hover:bg-emerald-600 hover:scale-[1.02] disabled:opacity-50 transition-all">
+              Vind Info! 🔍
+            </button>
+          </div>
+        </div>
+      );
+
+      const renderGenerating = (title, subtitle, emoji) => (
+        <div className="flex flex-col items-center justify-center py-24 text-center animate-in fade-in zoom-in-95 duration-700 relative z-10">
+          <div className="text-8xl animate-bounce mb-6 drop-shadow-md">{emoji}</div>
+          <h2 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">{title}</h2>
+          <p className="text-slate-600 font-bold text-xl max-w-md bg-white p-5 rounded-3xl shadow-sm border-4 border-slate-100">{subtitle}</p>
+        </div>
+      );
+
+      const renderContentDisplay = (title, subtitle, bgColor) => (
+        <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 pb-32 max-w-4xl mx-auto">
+           <div className={`flex flex-col sm:flex-row justify-between items-center mb-8 p-6 rounded-3xl border-4 ${bgColor} shadow-sm gap-4`}>
+            <div className="text-center sm:text-left">
+              <h2 className="text-3xl font-extrabold text-slate-800 mb-1">{title}</h2>
+              <p className="text-slate-600 font-bold text-lg">{subtitle} • <span className="font-extrabold text-slate-800 bg-white px-2 py-1 rounded-lg ml-1">{petAgeInfo?.lifeStage}</span></p>
+            </div>
+            <button onClick={() => { setStep('pet-dashboard'); setIsChatOpen(false); }} className="px-6 py-4 bg-white hover:bg-slate-50 text-slate-700 rounded-full font-extrabold shadow-sm border-2 border-transparent hover:border-slate-300 transition-all text-lg">
+              Terug naar Dossier 📂
+            </button>
+          </div>
+          
+          <div 
+            className="bg-white p-8 md:p-12 rounded-[2rem] shadow-sm border-4 border-slate-100 prose prose-slate max-w-none prose-headings:font-extrabold prose-h2:text-4xl prose-h2:mt-14 prose-h2:text-sky-800 prose-h2:border-b-4 prose-h2:border-sky-200 prose-h2:pb-4 prose-h3:text-3xl prose-h3:text-orange-600 prose-p:text-xl prose-p:leading-relaxed prose-p:font-bold prose-p:text-slate-700 prose-a:text-pink-500 prose-a:font-extrabold prose-a:underline-offset-4 prose-blockquote:border-l-8 prose-blockquote:border-pink-400 prose-blockquote:bg-pink-50 prose-blockquote:py-6 prose-blockquote:px-8 prose-blockquote:rounded-r-3xl prose-blockquote:not-italic prose-blockquote:text-pink-900 prose-li:my-3 prose-li:text-xl prose-li:font-bold prose-strong:text-slate-900"
+            dangerouslySetInnerHTML={{ __html: generatedHTML }}
+          />
+          
+          {/* Chat Widget integrated locally */}
+          <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+            {isChatOpen && (
+              <div className="bg-white rounded-[2rem] shadow-2xl border-4 border-sky-200 w-80 sm:w-96 mb-4 flex flex-col overflow-hidden animate-in slide-in-from-bottom-8 duration-300" style={{ height: '550px', maxHeight: '75vh' }}>
+                <div className="bg-gradient-to-r from-sky-400 to-blue-500 text-white p-5 flex justify-between items-center shadow-md z-10">
+                  <div>
+                    <h3 className="font-extrabold flex items-center gap-2 text-xl">
+                      <IconChat /> Jouw Vrolijke Hulp!
+                    </h3>
+                    <p className="text-sm text-sky-100 font-bold mt-1">Lokaal geholpen! 🐾</p>
+                  </div>
+                  <button onClick={() => setIsChatOpen(false)} className="text-sky-100 hover:text-white bg-white/20 p-2 rounded-full transition-colors"><IconClose /></button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 text-base">
+                  {chatMessages.length === 0 && (
+                    <div className="text-center text-slate-500 mt-10 flex flex-col items-center">
+                      <span className="text-6xl mb-4">👋</span>
+                      <p className="font-extrabold px-4 text-lg">Hoi! Typ 'eten', 'spelen', 'ziek' of 'medicijn' voor lokaal advies!</p>
+                    </div>
+                  )}
+                  {chatMessages.map((msg, idx) => (
+                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      {msg.role === 'assistant' ? (
+                         <div 
+                           className="max-w-[85%] p-4 rounded-2xl shadow-sm bg-white border-2 border-slate-200 text-slate-700 rounded-bl-none prose prose-sm prose-a:text-sky-600 prose-a:font-bold break-words font-medium"
+                           dangerouslySetInnerHTML={{ __html: msg.content }} 
+                         />
+                      ) : (
+                         <div className="max-w-[85%] p-4 rounded-2xl shadow-sm bg-sky-500 text-white rounded-br-none font-bold text-base">
+                           {msg.content}
+                         </div>
+                      )}
+                    </div>
+                  ))}
+                  {isChatLoading && (
+                    <div className="flex justify-start text-sky-500 p-4 bg-white border-2 border-slate-200 rounded-2xl rounded-bl-none w-20 shadow-sm">
+                       <span className="animate-pulse font-extrabold text-2xl">...</span>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+                <form onSubmit={handleSendLocalChatMessage} className="p-3 bg-white border-t-4 border-slate-100 flex gap-2 z-10">
+                  <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Typ je vraag..." className="flex-1 px-4 py-3 bg-slate-100 border-2 border-transparent rounded-xl outline-none focus:border-sky-400 font-bold text-slate-700" disabled={isChatLoading} />
+                  <button type="submit" disabled={!chatInput.trim() || isChatLoading} className="px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white rounded-xl font-extrabold disabled:opacity-50 transition-colors text-lg">Zend</button>
+                </form>
+              </div>
+            )}
+            {!isChatOpen && (
+              <button onClick={() => setIsChatOpen(true)} className={`bg-sky-500 hover:bg-sky-600 text-white p-5 rounded-full shadow-xl transition-all hover:scale-110 flex items-center gap-3 border-4 border-white`}>
+                <IconChat />
+                <span className="font-extrabold text-xl pr-2">Stel een Vraag! 🙋‍♀️</span>
+              </button>
+            )}
+          </div>
+        </div>
+      );
+
+      const renderShareModal = () => {
+        if (!selectedSticker) return null;
+        const shareText = encodeURIComponent(`Kijk eens wat een magische sticker ik heb gemaakt voor mijn huisdier! 🐾 Gemaakt op ${selectedSticker.date}.`);
+        return (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in">
+            <div className="bg-white rounded-[3rem] shadow-2xl p-8 max-w-sm w-full relative flex flex-col items-center">
+              <button onClick={() => setSelectedSticker(null)} className="absolute top-4 right-4 bg-slate-100 p-2 rounded-full text-slate-500 hover:text-slate-800"><IconClose /></button>
+              <img src={selectedSticker.src} className="w-64 h-64 object-contain drop-shadow-xl mb-6" />
+              <h3 className="text-2xl font-extrabold text-slate-800 mb-2">{selectedSticker.title}</h3>
+              <p className="text-slate-500 font-bold text-sm mb-8 bg-slate-100 px-4 py-1 rounded-full">Behaald op: {selectedSticker.date}</p>
+              
+              <div className="w-full space-y-3">
+                <a href={`https://wa.me/?text=${shareText}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-3 w-full py-4 bg-[#25D366] hover:bg-[#1EBE5D] text-white rounded-2xl font-extrabold text-lg transition-transform hover:scale-105 shadow-md">
+                  📱 Deel via WhatsApp
+                </a>
+                <a href={`https://www.facebook.com/sharer/sharer.php?u=https://example.com`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-3 w-full py-4 bg-[#1877F2] hover:bg-[#166FE5] text-white rounded-2xl font-extrabold text-lg transition-transform hover:scale-105 shadow-md">
+                  📘 Deel op Facebook
+                </a>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const renderWeatherPopup = () => {
+        if (!weatherPopup.show) return null;
+        return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300 p-4">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col border border-white">
+            <div className="bg-white p-4 flex justify-between items-center text-slate-800 border-b border-slate-100">
+              <h3 className="font-extrabold text-xl flex items-center gap-2">🌤️ Weer & Advies Check!</h3>
+              <button onClick={() => setWeatherPopup(prev => ({ ...prev, show: false }))} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200 transition-colors"><IconClose /></button>
+            </div>
+            <div className="p-8 bg-slate-50">
+              {weatherPopup.loading ? (
+                <div className="text-center py-10 flex flex-col items-center">
+                  <span className="text-7xl animate-bounce mb-6 block">⛅</span>
+                  <p className="text-slate-800 font-extrabold text-2xl animate-pulse mb-2">Lokaal kijken hoe het weer is... 🐾</p>
+                </div>
+              ) : (
+                <div className="animate-in zoom-in-95">
+                  <h4 className="text-2xl font-extrabold text-slate-800 mb-6">{weatherPopup.title}</h4>
+                  <div className="prose prose-sm max-w-none prose-p:font-medium prose-p:text-slate-600 prose-p:text-lg prose-h3:text-slate-800 prose-h3:mb-3 prose-h3:font-extrabold prose-h3:text-2xl prose-strong:text-slate-800 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100" dangerouslySetInnerHTML={{ __html: weatherPopup.html }} />
+                  <button onClick={() => setWeatherPopup(prev => ({ ...prev, show: false }))} className="mt-6 w-full py-4 bg-slate-900 text-white font-extrabold text-xl rounded-2xl shadow-md transition-transform hover:scale-105">
+                    Klinkt super! 🚀
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        );
+      };
+
+      return (
+        <div className="relative z-10">
+          {(!['handbook', 'medication-guide'].includes(step)) && renderHeader()}
+          
+          <main>
+            {step === 'home' && renderHome()}
+            {step === 'know-breed' && renderKnowBreed()}
+            {step === 'input-breed' && renderInputBreed()}
+            {step === 'guess-breed' && renderGuessBreed()}
+            {step === 'input-details' && renderInputDetails()}
+            {step === 'pet-dashboard' && renderPetDashboard()}
+            
+            {step === 'generating-handbook' && renderGenerating('Boekje wordt getekend...', `Ik zoek lokaal de allerleukste en beste tips speciaal voor een ${petAgeInfo?.lifeStage.split(' ')[0]} ${activePet.breed}!`, '✍️')}
+            {step === 'generating-medication' && renderGenerating('Dokterstas wordt gepakt...', `Super simpele uitleg voor ${activePet.medicationName} lokaal ophalen.`, '🩺')}
+            
+            {step === 'handbook' && renderContentDisplay(`📖 Encyclopedie: ${activePet.breed}`, "Gezellig Verzorgingsboekje", "bg-sky-100 border-sky-300")}
+            {step === 'medication-guide' && renderContentDisplay(`💊 ${activePet.medicationName}`, `Makkelijke EHBO Uitleg voor de ${activePet.breed}`, "bg-emerald-100 border-emerald-300")}
+            {step === 'input-medication' && renderInputMedication()}
+          </main>
+
+          {renderWeatherPopup()}
+          {renderShareModal()}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
 </body>
 </html>
